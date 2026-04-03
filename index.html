@@ -172,7 +172,9 @@
   .adm-badge{font-family:'Orbitron',monospace;font-size:.6rem;letter-spacing:2px;color:var(--accent3);border:1px solid rgba(168,85,247,.4);background:rgba(168,85,247,.1);padding:.22rem .55rem;border-radius:6px;cursor:pointer;}
   .adm-badge:hover{background:rgba(168,85,247,.2);}
   /* hide admin-only elements by default */
-  .admin-only{display:none!important;}
+  .admin-only{display:none;}
+  .admin-only.visible{display:block;}
+  .admin-only.visible-flex{display:flex;}
 
   #toast{position:fixed;bottom:1.2rem;right:1.2rem;z-index:500;background:rgba(0,212,255,.15);border:1px solid var(--accent);color:var(--accent);padding:.45rem .9rem;border-radius:10px;font-family:'Orbitron',monospace;font-size:.65rem;letter-spacing:2px;opacity:0;transition:opacity .3s;pointer-events:none;}
   #toast.show{opacity:1;}
@@ -185,7 +187,7 @@
 <div id="loginScreen">
   <div class="lc">
     <div class="lc-logo">🎭</div>
-    <div class="lc-title">ANNUAL DAY 2026</div>
+    <div class="lc-title">ANNUAL DAY 2027</div>
     <div class="lc-sub">Music Player · Stage Control</div>
     <div class="lc-row">
       <input class="lc-input" type="password" id="pwInput" placeholder="Enter Password" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
@@ -201,7 +203,7 @@
 
 <div class="main-wrapper">
   <div class="header">
-    <div class="header-title">🎭 ANNUAL DAY 2026</div>
+    <div class="header-title">🎭 ANNUAL DAY 2027</div>
     <div class="header-sub">Music Player · Stage Control</div>
   </div>
   <div class="main-layout">
@@ -389,19 +391,25 @@ function doAdminLogin(){
   }
 }
 function lockAdmin(){
-  adminUnlocked=false;setAdminUI(false);
+  adminUnlocked=false;
+  // close add panel if open
+  document.getElementById('addPanel').classList.remove('show');
+  setAdminUI(false);
   showToast('🔒 Admin locked');
 }
 function setAdminUI(on){
-  // Show/hide admin-only elements
-  document.querySelectorAll('.admin-only').forEach(el=>{el.style.display=on?'':'none';});
-  // Locked playlist placeholder
-  document.getElementById('plLocked').style.display=on?'none':'';
-  // The unlock button in header
-  document.getElementById('unlockBtn').style.display=on?'none':'';
-  // Admin badge (lock icon when unlocked)
-  document.getElementById('adminBadge').style.display=on?'':'none';
-  if(on)render();
+  // plList needs block, addPanel needs block, buttons need block
+  document.getElementById('plList').classList.toggle('visible', on);
+  document.getElementById('addPanel').classList.toggle('visible', on);
+  document.getElementById('addSongBtn').classList.toggle('visible', on);
+  document.getElementById('sortBtn').classList.toggle('visible', on);
+  // Locked placeholder
+  document.getElementById('plLocked').style.display = on ? 'none' : '';
+  // Unlock button in header
+  document.getElementById('unlockBtn').style.display = on ? 'none' : '';
+  // Admin badge
+  document.getElementById('adminBadge').style.display = on ? '' : 'none';
+  if(on) renderPlaylist();
 }
 
 /* ── STARS ── */
