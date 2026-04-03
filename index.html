@@ -75,10 +75,8 @@
   /* ── DRIVE PLAYER ── */
   .player-box{margin-bottom:1rem;}
   .player-box-label{font-family:'Orbitron',monospace;font-size:.62rem;letter-spacing:3px;color:var(--accent);text-align:center;margin-bottom:.5rem;}
-  .iframe-shell{border-radius:12px;overflow:hidden;border:2px solid var(--accent);box-shadow:var(--glow);background:#000;position:relative;}
+  .iframe-shell{border-radius:12px;overflow:hidden;border:2px solid var(--accent);box-shadow:var(--glow);background:#000;}
   #driveFrame{width:100%;height:80px;display:block;border:none;}
-  /* Hide pop-out button overlay */
-  .iframe-popout-block{position:absolute;top:0;right:0;width:60px;height:40px;background:#000;z-index:10;border-radius:0 0 0 8px;}
 
   /* ── CONTROLS ── */
   .ctrl-row{display:flex;align-items:center;justify-content:center;gap:.9rem;margin-bottom:.8rem;}
@@ -223,8 +221,6 @@
             <iframe id="driveFrame" allow="autoplay"
               src="https://drive.google.com/file/d/115YpRDtrwY1QI5RyHl7fvIfBSKw0O2i9/preview">
             </iframe>
-            <!-- Hides the Google Drive pop-out button -->
-            <div class="iframe-popout-block"></div>
           </div>
         </div>
 
