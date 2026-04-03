@@ -415,11 +415,9 @@ function setAdminUI(on){
 /* ── STARS ── */
 (()=>{const c=document.getElementById('stars');for(let i=0;i<120;i++){const s=document.createElement('div');s.className='star';s.style.left=Math.random()*100+'%';s.style.top=Math.random()*100+'%';s.style.setProperty('--o',(Math.random()*.5+.1).toFixed(2));s.style.setProperty('--d',(Math.random()*4+2).toFixed(1)+'s');s.style.animationDelay=(Math.random()*5).toFixed(1)+'s';c.appendChild(s);}})();
 
-/* ── PLAYLIST DATA — stored in localStorage so added songs persist ── */
-const LS_DATA='annualday_v6_data';
-const LS_ORDER='annualday_v6_order';
-
-const DEFAULT_TRACKS=[
+/* ── PLAYLIST DATA — baked in, no localStorage ── */
+/* __TRACKS_START__ */
+let PLAYLIST_MASTER=[
   {num:1, displayName:'Welcome Dance',        category:'UKG',   emoji:'🎊',id:'115YpRDtrwY1QI5RyHl7fvIfBSKw0O2i9'},
   {num:2, displayName:'Duff Boys',             category:'LKG',   emoji:'🥁',id:'19wcbzIvJle46iIwTzxYn8OJ8amDqfzs3'},
   {num:3, displayName:'Dance Boys',            category:'1B',    emoji:'🕺',id:'13tvJfZiFXCl9OzxupD8SkvZM53pLx2yz'},
@@ -443,31 +441,11 @@ const DEFAULT_TRACKS=[
   {num:34,displayName:'Oppana Girls',          category:'UKG',   emoji:'🎀',id:'1HWNV_6CVCDNnWbg0RXkeWHWNE94Ty0zc'},
   {num:35,displayName:'Extra Track',           category:'',      emoji:'🎵',id:'1J8YEMlh11I7MAaWCl97Iyar-d7R0d29j'},
 ];
-
-// Load master from localStorage (persists added songs)
-let PLAYLIST_MASTER=[];
-function loadMaster(){
-  try{
-    const saved=localStorage.getItem(LS_DATA);
-    if(saved){PLAYLIST_MASTER=JSON.parse(saved);}
-    else{PLAYLIST_MASTER=[...DEFAULT_TRACKS];}
-  }catch(e){PLAYLIST_MASTER=[...DEFAULT_TRACKS];}
-}
-function saveMaster(){try{localStorage.setItem(LS_DATA,JSON.stringify(PLAYLIST_MASTER));}catch(e){}}
+/* __TRACKS_END__ */
 
 let playlist=[];
-function loadOrder(){
-  try{
-    const r=localStorage.getItem(LS_ORDER);
-    if(r){
-      const o=JSON.parse(r),v=o.filter(i=>i>=0&&i<PLAYLIST_MASTER.length);
-      PLAYLIST_MASTER.forEach((_,i)=>{if(!v.includes(i))v.push(i);});
-      playlist=v;return;
-    }
-  }catch(e){}
-  playlist=PLAYLIST_MASTER.map((_,i)=>i);
-}
-function saveOrder(){try{localStorage.setItem(LS_ORDER,JSON.stringify(playlist));}catch(e){}}
+function loadOrder(){playlist=PLAYLIST_MASTER.map((_,i)=>i);}
+function saveOrder(){}  // no-op, order lives in the file
 function track(i){return PLAYLIST_MASTER[playlist[i]];}
 
 let currentIdx=0,doShuffle=false,doRepeat=false;
@@ -494,7 +472,6 @@ function addNewSong(){
   const numVal=parseInt(document.getElementById('addNum').value.trim());
   const cat=document.getElementById('addCat').value.trim();
 
-  // Extract file ID if full URL pasted
   let fileId=rawId;
   const m=rawId.match(/\/d\/([a-zA-Z0-9_-]+)/);
   if(m)fileId=m[1];
@@ -503,17 +480,14 @@ function addNewSong(){
   if(!name){showToast('⚠ Please enter a song name',true);return;}
   if(!numVal||isNaN(numVal)){showToast('⚠ Please enter a programme number',true);return;}
 
-  // Check for duplicate programme number
   const dup=PLAYLIST_MASTER.find(t=>t.num===numVal);
   if(dup){showToast(`⚠ Programme #${numVal} already exists (${dup.displayName})`,true);return;}
 
   const newTrack={num:numVal,displayName:name,category:cat,emoji:selectedEmoji,id:fileId};
   PLAYLIST_MASTER.push(newTrack);
-  saveMaster();
   playlist.push(PLAYLIST_MASTER.length-1);
-  saveOrder();
 
-  // Clear inputs
+  // Clear inputs & close panel
   document.getElementById('addId').value='';
   document.getElementById('addName').value='';
   document.getElementById('addNum').value='';
@@ -521,7 +495,31 @@ function addNewSong(){
   document.getElementById('addPanel').classList.remove('show');
 
   render();
-  showToast(`✅ Added: Prog #${numVal} — ${name}`,'success');
+  exportUpdatedFile();
+  showToast(`✅ Added Prog #${numVal} — ${name}. Downloading updated file…`,'success');
+}
+
+/* ── EXPORT: generate new HTML with updated track list and download it ── */
+function exportUpdatedFile(){
+  // Build the new track array string
+  const lines=PLAYLIST_MASTER.map(t=>
+    `  {num:${t.num}, displayName:${JSON.stringify(t.displayName)}, category:${JSON.stringify(t.category)}, emoji:${JSON.stringify(t.emoji)}, id:${JSON.stringify(t.id)}}`
+  ).join(',\n');
+  const newBlock=`/* __TRACKS_START__ */\nlet PLAYLIST_MASTER=[\n${lines},\n];\n/* __TRACKS_END__ */`;
+
+  // Read the current page's HTML source and splice in the new block
+  const html=document.documentElement.outerHTML;
+  const start=html.indexOf('/* __TRACKS_START__ */');
+  const end=html.indexOf('/* __TRACKS_END__ */')+('/* __TRACKS_END__ */').length;
+  if(start===-1||end===-1){showToast('⚠ Could not export — marker not found',true);return;}
+  const newHtml=html.slice(0,start)+newBlock+html.slice(end);
+
+  const blob=new Blob([newHtml],{type:'text/html'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='annual_day_player.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 /* ── DELETE TRACK ── */
@@ -531,15 +529,13 @@ function deleteTrack(playlistIdx,e){
   if(!confirm(`Remove "${t.displayName}" (Programme #${t.num}) from playlist?`))return;
   const masterIdx=playlist[playlistIdx];
   playlist.splice(playlistIdx,1);
-  // Adjust currentIdx
   if(playlistIdx===currentIdx&&currentIdx>0)currentIdx--;
   else if(playlistIdx<currentIdx)currentIdx--;
-  // Remove from master
   PLAYLIST_MASTER.splice(masterIdx,1);
-  // Remap playlist indices
   playlist=playlist.map(i=>i>masterIdx?i-1:i);
-  saveMaster();saveOrder();render();updateNP();
-  showToast(`🗑 Removed: ${t.displayName}`);
+  render();updateNP();
+  exportUpdatedFile();
+  showToast(`🗑 Removed. Downloading updated file…`);
 }
 
 /* ── MICROPHONE VISUALIZER ── */
@@ -718,7 +714,7 @@ function showToast(msg,type=false){
 }
 
 /* ── INIT ── */
-loadMaster();loadOrder();render();updateNP();
+loadOrder();render();updateNP();
 </script>
 </body>
 </html>
