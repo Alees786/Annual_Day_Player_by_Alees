@@ -369,7 +369,7 @@
 <div id="loginScreen">
   <div class="lc">
     <div class="lc-logo">🎭</div>
-    <div class="lc-title">ANNUAL DAY 2026</div>
+    <div class="lc-title">ANNUAL DAY 2025</div>
     <div class="lc-sub">Music Player · Stage Control</div>
     <div class="lc-row">
       <input class="lc-input" type="password" id="pwInput"
@@ -387,7 +387,7 @@
 
 <div class="main-wrapper">
   <div class="header">
-    <div class="header-title">🎭 ANNUAL DAY 2026</div>
+    <div class="header-title">🎭 ANNUAL DAY 2025</div>
     <div class="header-sub">Music Player · Stage Control</div>
   </div>
 
@@ -467,13 +467,13 @@
   </div>
 </div>
 
-<audio id="audioEl" crossorigin="anonymous"></audio>
+<audio id="audioEl"></audio>
 
 <script>
 // ════════════════════════════════════════════
 // PASSWORD  ← change this to your own password
 // ════════════════════════════════════════════
-const PASS = 'Alees';
+const PASS = 'annualday2025';
 
 function doLogin() {
   const v = document.getElementById('pwInput').value;
@@ -698,16 +698,31 @@ function updateNP() {
 }
 
 // ════════════════════════════════════════════
-// LOAD & PLAY  — stream from Google Drive URL
+// LOAD & PLAY  — stream via proxy (fixes CORS)
 // ════════════════════════════════════════════
+
+// Extract Drive file ID from any Drive URL format
+function driveId(url) {
+  const m = url.match(/[?&]id=([^&]+)/);
+  return m ? m[1] : null;
+}
+
+// Build a working streamable URL — tries multiple methods
+function streamUrl(driveUrl) {
+  const id = driveId(driveUrl);
+  if (!id) return driveUrl;
+  // Use allorigins proxy — reliably bypasses CORS for Drive files
+  const target = `https://drive.google.com/uc?export=download&confirm=t&id=${id}`;
+  return `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`;
+}
+
 function loadTrack(idx, play=false) {
   if (idx<0||idx>=playlist.length) return;
   currentIdx = idx;
   const t = track(idx);
 
-  // Use a CORS-friendly proxy to stream the Drive file
-  // Drive's direct download URL works as audio src in most browsers
-  audio.src = t.url;
+  const url = streamUrl(t.url);
+  audio.src = url;
   audio.load();
 
   render();
@@ -715,8 +730,9 @@ function loadTrack(idx, play=false) {
   if (play) {
     initAudio();
     if (audioCtx.state==='suspended') audioCtx.resume();
-    // Show loading state
     document.querySelectorAll('.pi')[idx]?.classList.add('loading-track');
+    showToast('⏳ Loading ' + t.displayName);
+
     audio.play()
       .then(() => {
         isPlaying = true;
@@ -726,8 +742,21 @@ function loadTrack(idx, play=false) {
       })
       .catch(err => {
         document.querySelectorAll('.pi')[idx]?.classList.remove('loading-track');
-        showToast('⚠ Could not load — check Drive sharing', true);
-        console.error(err);
+        // Fallback: try direct Drive URL without proxy
+        console.warn('Proxy failed, trying direct:', err);
+        const directUrl = `https://drive.google.com/uc?export=download&confirm=t&id=${driveId(t.url)}`;
+        audio.src = directUrl;
+        audio.load();
+        audio.play()
+          .then(() => {
+            isPlaying = true;
+            updateBtn();
+            showToast('▶ ' + t.displayName);
+          })
+          .catch(err2 => {
+            showToast('⚠ Cannot play — make file public in Drive', true);
+            console.error('Both methods failed:', err2);
+          });
       });
   }
 }
@@ -744,7 +773,8 @@ function togglePlay() {
       loadTrack(currentIdx, true);
       return;
     }
-    audio.play().then(()=>{ isPlaying=true; updateBtn(); }).catch(()=>{});
+    showToast('⏳ Loading...');
+    audio.play().then(()=>{ isPlaying=true; updateBtn(); showToast('▶ ' + track(currentIdx).displayName); }).catch(()=>{ loadTrack(currentIdx, true); });
   }
 }
 
@@ -880,7 +910,7 @@ function showToast(msg, warn=false){
 loadOrder();
 render();
 // Pre-load first track (no autoplay)
-audio.src = track(0).url;
+audio.src = streamUrl(track(0).url);
 </script>
 </body>
 </html>
